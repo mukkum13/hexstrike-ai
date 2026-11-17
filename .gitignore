@@ -1,0 +1,5 @@
+hexstrike-env/
+hexstrike.log
+*.log
+__pycache__/
+*.pyc

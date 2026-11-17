@@ -22,6 +22,7 @@ import argparse
 import json
 import logging
 import os
+import tempfile
 import subprocess
 import sys
 import traceback
@@ -68,6 +69,16 @@ from mitmproxy.options import Options as MitmOptions
 # ============================================================================
 # LOGGING CONFIGURATION (MUST BE FIRST)
 # ============================================================================
+
+# Windows console defaults to a legacy codepage (cp1252) that can't encode
+# the emoji used in several log messages, which crashes the log handler.
+# Force UTF-8 with lossy fallback instead of raising.
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 # Configure logging with fallback for permission issues
 try:
@@ -5705,9 +5716,9 @@ class ProcessManager:
 class PythonEnvironmentManager:
     """Manage Python virtual environments and dependencies"""
 
-    def __init__(self, base_dir: str = "/tmp/hexstrike_envs"):
-        self.base_dir = Path(base_dir)
-        self.base_dir.mkdir(exist_ok=True)
+    def __init__(self, base_dir: str = None):
+        self.base_dir = Path(base_dir or os.path.join(tempfile.gettempdir(), "hexstrike_envs"))
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def create_venv(self, env_name: str) -> Path:
         """Create a new virtual environment"""
@@ -8928,9 +8939,9 @@ def _determine_operation_type(tool_name: str) -> str:
 class FileOperationsManager:
     """Handle file operations with security and validation"""
 
-    def __init__(self, base_dir: str = "/tmp/hexstrike_files"):
-        self.base_dir = Path(base_dir)
-        self.base_dir.mkdir(exist_ok=True)
+    def __init__(self, base_dir: str = None):
+        self.base_dir = Path(base_dir or os.path.join(tempfile.gettempdir(), "hexstrike_files"))
+        self.base_dir.mkdir(parents=True, exist_ok=True)
         self.max_file_size = 100 * 1024 * 1024  # 100MB
 
     def create_file(self, filename: str, content: str, binary: bool = False) -> Dict[str, Any]:
@@ -17286,4 +17297,4 @@ if __name__ == "__main__":
         if line.strip():
             logger.info(line)
 
-    app.run(host="0.0.0.0", port=API_PORT, debug=DEBUG_MODE)
+    app.run(host=API_HOST, port=API_PORT, debug=DEBUG_MODE)  # bind localhost by default (was 0.0.0.0); override with HEXSTRIKE_HOST
